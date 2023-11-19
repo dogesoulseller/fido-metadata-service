@@ -164,7 +164,7 @@ pub struct MetadataStatement {
 	/// Attestation types supported by the authenticator, e.g. basic_full. Specified in <https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-rd-20210525.html#authenticator-attestation-types>
 	pub attestation_types: Vec<String>,
 
-	/// List of ANDed combinations of verification methods supported by the authenticator. Specified in <https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-rd-20210525.html#user-verification-methods>
+	/// List of ANDed combinations of verification methods supported by the authenticator.
 	pub user_verification_details: VerificationMethodANDCombinations,
 
 	/// Key protection types supported by the authenticator, e.g. secure_element. Specified in <https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-rd-20210525.html#key-protection-types>
@@ -308,9 +308,16 @@ pub struct EcdaaTrustAnchor {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VerificationMethodDescriptor {
+	/// Verification method, e.g. presence_internal. Specified in <https://fidoalliance.org/specs/common-specs/fido-registry-v2.2-rd-20210525.html#user-verification-methods>
 	pub user_verification_method: String,
+
+	/// Code accuracy.
 	pub ca_desc: Option<CodeAccuracyDescriptor>,
+
+	/// Biometric accuracy.
 	pub ba_desc: Option<BiometricAccuracyDescriptor>,
+
+	/// Pattern accuracy.
 	pub pa_desc: Option<PatternAccuracyDescriptor>,
 }
 
