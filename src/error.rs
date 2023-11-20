@@ -1,25 +1,30 @@
+/// Error type for this crate. This is a wrapper around other errors.
 #[derive(Debug)]
 pub enum FidoMdsError {
 	/// Required JWT header is missing.
-    JwtMissing,
+	JwtMissing,
 
 	/// Payload is missing.
-    PayloadMissing,
+	PayloadMissing,
 
 	/// Signature is missing.
-    SignatureMissing,
+	SignatureMissing,
 
 	/// IO error.
-    IoError(std::io::Error),
+	IoError(std::io::Error),
 
 	/// Base64 decoding error.
-    Base64Error(base64::DecodeError),
+	Base64Error(base64::DecodeError),
 
 	/// JSON deserialization error.
-    JsonError(serde_json::Error),
+	JsonError(serde_json::Error),
 
 	/// Error converting part to UTF-8.
-	UTF8Error(std::string::FromUtf8Error)
+	UTF8Error(std::string::FromUtf8Error),
+
+	/// Error from reqwest.
+	#[cfg(feature = "download")]
+	ReqwestError(reqwest::Error),
 }
 
 impl From<std::io::Error> for FidoMdsError {
@@ -43,5 +48,12 @@ impl From<serde_json::Error> for FidoMdsError {
 impl From<std::string::FromUtf8Error> for FidoMdsError {
 	fn from(err: std::string::FromUtf8Error) -> Self {
 		FidoMdsError::UTF8Error(err)
+	}
+}
+
+#[cfg(feature = "download")]
+impl From<reqwest::Error> for FidoMdsError {
+	fn from(err: reqwest::Error) -> Self {
+		FidoMdsError::ReqwestError(err)
 	}
 }

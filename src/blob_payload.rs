@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 fn bool_true() -> bool { true }
 
 /// FIDO MDS root payload.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#metadata-blob-payload-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MetadataBlobPayload {
@@ -15,11 +17,13 @@ pub struct MetadataBlobPayload {
 	/// Date when the next update will be provided.
 	pub next_update: chrono::NaiveDate,
 
-	/// Authenticator entries
-	pub entries: Vec<MetadataBlobPayloadEntry>
+	/// Authenticator entries.
+	pub entries: Vec<MetadataBlobPayloadEntry>,
 }
 
 /// FIDO MDS Entry. Contains metadata about an authenticator.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#metadata-blob-payload-entry-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MetadataBlobPayloadEntry {
@@ -50,11 +54,39 @@ pub struct MetadataBlobPayloadEntry {
 	pub rogue_list_url: Option<String>,
 
 	/// Hash value computed of base64url encoded rogueList at rogue_list_url. Uses JWT header algorithm.
-	pub rogue_list_hash: Option<String>
+	pub rogue_list_hash: Option<String>,
+}
+
+impl MetadataBlobPayloadEntry {
+	/// Is this authenticator UAF?
+	///
+	/// Due to possible errors in the metadata, this function might rarely return false positives or false negatives.
+	pub fn is_uaf(&self) -> bool {
+		self.metadata_statement.as_ref().map(|meta| meta.protocol_family == "uaf").unwrap_or(false) ||
+			(self.aaid.is_some() && self.aaguid.is_some() && self.attestation_certificate_key_identifiers.is_none())
+	}
+
+	/// Is this authenticator U2F?
+	///
+	/// Due to possible errors in the metadata, this function might rarely return false positives or false negatives.
+	pub fn is_u2f(&self) -> bool {
+		self.metadata_statement.as_ref().map(|meta| meta.protocol_family == "u2f").unwrap_or(false) ||
+			(self.aaid.is_none() && self.aaguid.is_none() && self.attestation_certificate_key_identifiers.is_some())
+	}
+
+	/// Is this authenticator FIDO2?
+	///
+	/// Due to possible errors in the metadata, this function might rarely return false positives or false negatives.
+	pub fn is_fido2(&self) -> bool {
+		self.metadata_statement.as_ref().map(|meta| meta.protocol_family == "fido2").unwrap_or(false) ||
+			(self.aaid.is_none() && self.aaguid.is_some() && self.attestation_certificate_key_identifiers.is_none())
+	}
 }
 
 
 /// Data about status updates for an authenticator.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#statusreport-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StatusReport {
@@ -83,10 +115,12 @@ pub struct StatusReport {
 	pub certification_policy_version: Option<String>,
 
 	/// Security requirements version the certification is based on, e.g. "1.0.0".
-	pub certification_requirements_version: Option<String>
+	pub certification_requirements_version: Option<String>,
 }
 
 /// Status of a biometric component.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#biometricstatusreport-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BiometricStatusReport {
@@ -109,10 +143,12 @@ pub struct BiometricStatusReport {
 	pub certification_policy_version: Option<String>,
 
 	/// Security requirements version the certification is based on, e.g. "1.0.0".
-	pub certification_requirements_version: Option<String>
+	pub certification_requirements_version: Option<String>,
 }
 
 /// Metadata statement. Contains metadata about an authenticator.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MetadataStatement {
@@ -208,36 +244,17 @@ pub struct MetadataStatement {
 	/// Extensions supported by UAF authenticators. UAF only.
 	pub supported_extensions: Option<Vec<ExtensionDescriptor>>,
 
-	/// Supported versions, extensions, etc. for device. FIDO2 only.
-	pub authenticator_get_info: Option<AuthenticatorGetInfo>,
-}
-
-/// Result as returned by the FIDO CTAP authenticatorGetInfo command. See <https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html#authenticatorGetInfo>
-#[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthenticatorGetInfo {
-	/// List of supported versions. FIDO_2_0 (ctap2, fido2, webauthn) or U2F_V2 (ctap1, u2f).
-	pub versions: Vec<String>,
-
-	/// Supported extensions.
-	pub extensions: Option<Vec<String>>,
-
-	/// AAGUID.
-	pub aaguid: String,
-
-	/// Supported options.
-	pub options: Option<HashMap<String, bool>>,
-
-	/// Maximum emssages size supported by authenticator.
-	pub max_msg_size: Option<u32>,
-
-	/// Supported PIN protocol versions.
-	pub pin_protocols: Option<Vec<u32>>,
+	/// Supported versions, extensions, etc. for device as per the authenticator API. FIDO2 only.
+	///
+	/// This is a JSON object, but it's not known what it contains. It's not documented in the spec as the API is entirely implementation-defined.
+	pub authenticator_get_info: Option<serde_json::Value>,
 }
 
 pub type VerificationMethodANDCombinations = Vec<Vec<VerificationMethodDescriptor>>;
 
 /// PNG image characteristics.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#displaypngcharacteristicsdescriptor-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DisplayPNGCharacteristicsDescriptor {
@@ -267,15 +284,19 @@ pub struct DisplayPNGCharacteristicsDescriptor {
 }
 
 /// RGB palette entry.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#dictdef-rgbpaletteentry>
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct RGBPaletteEntry {
 	pub r: u16,
 	pub g: u16,
-	pub b: u16
+	pub b: u16,
 }
 
 /// Extension descriptor.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#extensiondescriptor-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ExtensionDescriptor {
 	/// Extension identifier.
@@ -305,6 +326,8 @@ pub struct EcdaaTrustAnchor {
 }
 
 /// Descriptor of available verification methods.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#verificationmethoddescriptor-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VerificationMethodDescriptor {
@@ -322,6 +345,8 @@ pub struct VerificationMethodDescriptor {
 }
 
 /// Accuracy and complexity aspects of passcode verification method. For example PIN.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#dictdef-codeaccuracydescriptor>
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeAccuracyDescriptor {
@@ -339,6 +364,8 @@ pub struct CodeAccuracyDescriptor {
 }
 
 /// Accuracy and complexity aspects of biometric verification method. For example, fingerprint reader.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#biometricaccuracydescriptor-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct BiometricAccuracyDescriptor {
@@ -361,6 +388,8 @@ pub struct BiometricAccuracyDescriptor {
 }
 
 /// Accuracy and complexity aspects of pattern verification method. For example, Android pattern lock.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.0-ps-20210518.html#patternaccuracydescriptor-dictionary>
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct PatternAccuracyDescriptor {
@@ -378,13 +407,15 @@ pub struct PatternAccuracyDescriptor {
 #[serde(rename_all = "camelCase")]
 pub struct Version {
 	pub major: Option<u16>,
-	pub minor: Option<u16>
+	pub minor: Option<u16>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+/// Status entry status code.
+///
+/// See: <https://fidoalliance.org/specs/mds/fido-metadata-service-v3.0-ps-20210518.html#authenticatorstatus-enum>
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthenticatorStatus {
-
 	/// Not FIDO Certified.
 	///
 	/// Contains:

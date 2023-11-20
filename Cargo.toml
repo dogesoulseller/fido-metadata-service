@@ -1,15 +1,31 @@
 [package]
-name = "fido-mds"
+name = "fido-metadata-service"
 version = "0.1.0"
 edition = "2021"
 authors = ["Marcin Czerwonka <marcin.czerwonka@protonmail.com>"]
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[example]]
+name = "pull_most_recent"
+required-features = ["download", "blocking"]
+
+[[example]]
+name = "pull_most_recent_async"
+required-features = ["download"]
 
 [dependencies]
-reqwest = { version = "0.11", features = ["rustls-tls", "blocking"] }
+reqwest = { version = "0.11", optional = true, features = [] }
 base64 = { version = "0.21", features = [] }
-serde = { version = "1.0.192", features = ["derive", "std"] }
-serde_json = { version = "1.0.108", features = ["std"] }
+serde = { version = "1.0", features = ["derive", "std"] }
+serde_json = { version = "1.0", features = ["std"] }
 chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { version = "1.34", features = [] }
+
+[features]
+default = ["download", "rustls-tls"]
+download = ["dep:reqwest"]
+blocking = ["download", "reqwest/blocking"]
+rustls-tls = ["download", "reqwest/rustls-tls"]
+native-tls = ["download", "reqwest/native-tls"]
